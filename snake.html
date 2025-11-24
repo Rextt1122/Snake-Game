@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <title>Snake</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { display:flex; align-items:center; justify-content:center; height:100vh; margin:0; background:#111; color:#fff; font-family:Arial,Helvetica,sans-serif; }
+    #container { text-align:center; }
+    canvas { background:#000; display:block; margin:0 auto; image-rendering:pixelated; border:4px solid #222; }
+    #info { margin-top:10px; }
+    button { margin-top:8px; padding:6px 12px; }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <canvas id="game" width="400" height="400"></canvas>
+    <div id="info">
+      <div>Skor: <span id="score">0</span></div>
+      <div style="font-size:0.9em; color:#aaa; margin-top:6px;">Kontrol: Panah atau WASD. Tekan Space untuk mulai/ulang.</div>
+      <button id="startBtn">Mulai / Ulang</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const scoreEl = document.getElementById('score');
+    const startBtn = document.getElementById('startBtn');
+
+    const CELL = 20;
+    const COLS = canvas.width / CELL;
+    const ROWS = canvas.height / CELL;
+
+    let snake;
+    let dir;
+    let nextDir;
+    let food;
+    let score;
+    let gameInterval;
+    let running = false;
+    const TICK = 100; // ms per frame (speed)
+
+    function randCell() {
+      return { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
+    }
+
+    function init() {
+      snake = [];
+      // Mulai dengan panjang 4 di tengah
+      const startX = Math.floor(COLS / 2);
+      const startY = Math.floor(ROWS / 2);
+      for (let i = 0; i < 4; i++) snake.push({ x: startX - i, y: startY });
+      dir = { x: 1, y: 0 };
+      nextDir = { x: 1, y: 0 };
+      placeFood();
+      score = 0;
+      scoreEl.textContent = score;
+      if (gameInterval) clearInterval(gameInterval);
+      gameInterval = setInterval(tick, TICK);
+      running = true;
+    }
+
+    function placeFood() {
+      do {
+        food = randCell();
+      } while (snake.some(s => s.x === food.x && s.y === food.y));
+    }
+
+    function tick() {
+      // update direction (batasi reverse)
+      if ((nextDir.x === -dir.x && nextDir.y === -dir.y)) {
+        // ignore reverse
+      } else {
+        dir = nextDir;
+      }
+
+      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+      // cek tumbukan tembok
+      if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+        gameOver();
+        return;
+      }
+
+      // cek tumbukan tubuh
+      if (snake.some(s => s.x === head.x && s.y === head.y)) {
+        gameOver();
+        return;
+      }
+
+      snake.unshift(head);
+
+      // makan makanan?
+      if (head.x === food.x && head.y === food.y) {
+        score += 1;
+        scoreEl.textContent = score;
+        placeFood();
+      } else {
+        snake.pop();
+      }
+
+      draw();
+    }
+
+    function gameOver() {
+      clearInterval(gameInterval);
+      running = false;
+      draw(true);
+    }
+
+    function draw(gameOverText = false) {
+      // background
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // grid optional (comment kalau mau)
+      ctx.strokeStyle = '#0b0b0b';
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= canvas.width; x += CELL) {
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += CELL) {
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+      }
+
+      // makanan
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillRect(food.x * CELL, food.y * CELL, CELL, CELL);
+
+      // ular
+      for (let i = 0; i < snake.length; i++) {
+        ctx.fillStyle = i === 0 ? '#2ecc71' : '#27ae60';
+        ctx.fillRect(snake[i].x * CELL, snake[i].y * CELL, CELL, CELL);
+      }
+
+      if (gameOverText) {
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(0, canvas.height / 2 - 40, canvas.width, 80);
+        ctx.fillStyle = '#fff';
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Game Over! Tekan Mulai/Ulang atau Space', canvas.width / 2, canvas.height / 2);
+      }
+    }
+
+    // input keyboard
+    window.addEventListener('keydown', (e) => {
+      const key = e.key;
+      if (key === 'ArrowUp' || key === 'w' || key === 'W') nextDir = { x: 0, y: -1 };
+      if (key === 'ArrowDown' || key === 's' || key === 'S') nextDir = { x: 0, y: 1 };
+      if (key === 'ArrowLeft' || key === 'a' || key === 'A') nextDir = { x: -1, y: 0 };
+      if (key === 'ArrowRight' || key === 'd' || key === 'D') nextDir = { x: 1, y: 0 };
+      if (key === ' ' ) {
+        if (!running) init();
+      }
+    });
+
+    startBtn.addEventListener('click', () => { init(); });
+
+    // mulai otomatis
+    draw();
+  </script>
+</body>
+</html>
